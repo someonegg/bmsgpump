@@ -1,7 +1,7 @@
 bmsgpump
 ======
 
-bmsgpump provides a message-pump facility with golang.
+bmsgpump provides a binary message-pump facility with golang.
 
 The message-pump will continuously receive, process and send messages after startup.
 
