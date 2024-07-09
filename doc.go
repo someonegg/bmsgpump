@@ -7,6 +7,6 @@
 // The message-pump will continuously receive, process and send messages after startup.
 //
 // The message is defined as variable-length byte array.
-
+//
 // The transport layer is defined by the MessageReadWriter interface, there is an implementation over net.Conn.
 package bmsgpump
