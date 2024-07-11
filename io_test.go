@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 )
 
 type mockMRW struct {
@@ -56,9 +57,29 @@ func (rw *mockMRW) WriteMessage(m Message) error {
 	}
 
 	rw.wcnt++
-	l := len(m)
+	l := m.Size()
 	rw.b.WriteString(fmt.Sprint(l))
 	rw.b.WriteString(":")
 	rw.b.Write(m)
+	return nil
+}
+
+func (rw *mockMRW) WriteMessageMP(m MPMessage) error {
+	if rw.wsus != nil {
+		select {
+		case <-rw.wsus:
+		}
+	}
+
+	if rw.wmax > 0 && rw.wcnt >= rw.wmax {
+		return io.ErrClosedPipe
+	}
+
+	rw.wcnt++
+	l := m.Size()
+	rw.b.WriteString(fmt.Sprint(l))
+	rw.b.WriteString(":")
+	bufs := net.Buffers(m)
+	bufs.WriteTo(&rw.b)
 	return nil
 }

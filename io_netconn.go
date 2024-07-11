@@ -76,7 +76,7 @@ func (rw netconnMRW) ReadMessage() (m Message, Err error) {
 }
 
 func (rw netconnMRW) WriteMessage(m Message) error {
-	l := len(m)
+	l := m.Size()
 
 	err := binary.Write(rw.c, binary.BigEndian, int32(l))
 	if err != nil {
@@ -84,6 +84,23 @@ func (rw netconnMRW) WriteMessage(m Message) error {
 	}
 
 	_, err = rw.c.Write(m)
+	if err != nil {
+		return err
+	}
+
+	return rw.c.Flush()
+}
+
+func (rw netconnMRW) WriteMessageMP(m MPMessage) error {
+	l := m.Size()
+
+	err := binary.Write(rw.c, binary.BigEndian, int32(l))
+	if err != nil {
+		return err
+	}
+
+	bufs := net.Buffers(m)
+	_, err = bufs.WriteTo(rw.c)
 	if err != nil {
 		return err
 	}

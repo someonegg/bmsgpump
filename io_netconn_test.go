@@ -80,3 +80,22 @@ func TestNetconnWrite(test *testing.T) {
 		test.Fatal("netconn io: write wrong format")
 	}
 }
+
+func TestNetconnWriteMP(test *testing.T) {
+	c := &mockNetConn{}
+	rw := NetconnMRW(c)
+
+	err := rw.WriteMessageMP(MPMessage{[]byte("m1"), []byte("m2"), []byte("m3")})
+	if err != nil {
+		test.Fatal(err)
+	}
+
+	m, err := rw.ReadMessage()
+	if err != nil {
+		test.Fatal(err)
+	}
+
+	if string(m) != "m1m2m3" {
+		test.Fatal("netconn io: write wrong format")
+	}
+}

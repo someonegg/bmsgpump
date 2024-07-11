@@ -64,6 +64,37 @@ func TestPumpWrite(test *testing.T) {
 	}
 }
 
+func TestPumpWriteMP(test *testing.T) {
+	rw := &mockMRW{rsus: make(chan bool), wmax: 2}
+
+	h := func(ctx context.Context, m Message) {}
+
+	pump := NewPump(rw, HandlerFunc(h), 1)
+	pump.Start(nil)
+
+	pump.Output(context.Background(), []byte("m1"))
+	pump.OutputMP(context.Background(), MPMessage{[]byte("m2"), []byte("m3")})
+	pump.Output(context.Background(), []byte("m4"))
+
+	select {
+	case <-pump.StopD():
+	case <-time.After(1 * time.Second):
+		test.Fatal("write stop")
+	}
+
+	if rw.wcnt != rw.wmax {
+		test.Fatal("write count")
+	}
+
+	if rw.b.Len() != 10 {
+		test.Fatal("write format", string(rw.b.Bytes()))
+	}
+
+	if err := pump.Error(); err != io.ErrClosedPipe {
+		test.Fatal("write error", err)
+	}
+}
+
 func TestPumpTryWriteAndStop(test *testing.T) {
 	rw := &mockMRW{rsus: make(chan bool), wsus: make(chan bool)}
 
@@ -77,7 +108,7 @@ func TestPumpTryWriteAndStop(test *testing.T) {
 		test.Fatal("try write")
 	}
 	pump.Output(context.Background(), []byte("m2"))
-	ok = pump.TryOutput([]byte("m3"))
+	ok = pump.TryOutputMP(MPMessage{[]byte("m3")})
 	if ok {
 		test.Fatal("try write")
 	}

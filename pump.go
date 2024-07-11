@@ -76,7 +76,7 @@ type Pump struct {
 	// write
 	werr error
 	wD   syncx.DoneChan
-	wQ   chan Message
+	wQ   chan message
 
 	stat Statistics
 
@@ -98,7 +98,7 @@ func NewPump(rw MessageReadWriter, h Handler, writeQueueSize int) *Pump {
 
 		rD: syncx.NewDoneChan(),
 		wD: syncx.NewDoneChan(),
-		wQ: make(chan Message, writeQueueSize),
+		wQ: make(chan message, writeQueueSize),
 
 		panicLogF: thePanicLogFunc,
 	}
@@ -212,7 +212,7 @@ func (p *Pump) readMessage() Message {
 		panic(legalPanic{err})
 	}
 	atomic.AddInt64(&p.stat.ReadedCount, 1)
-	atomic.AddInt64(&p.stat.ReadedBytes, int64(len(m)))
+	atomic.AddInt64(&p.stat.ReadedBytes, int64(m.Size()))
 	return m
 }
 
@@ -247,13 +247,18 @@ func (p *Pump) writing(ctx context.Context) {
 	}
 }
 
-func (p *Pump) writeMessage(m Message) {
-	err := p.rw.WriteMessage(m)
+func (p *Pump) writeMessage(m message) {
+	var err error
+	if m.mS != nil {
+		err = p.rw.WriteMessage(m.mS)
+	} else {
+		err = p.rw.WriteMessageMP(m.mM)
+	}
 	if err != nil {
 		panic(legalPanic{err})
 	}
 	atomic.AddInt64(&p.stat.WrittenCount, 1)
-	atomic.AddInt64(&p.stat.WrittenBytes, int64(len(m)))
+	atomic.AddInt64(&p.stat.WrittenBytes, int64(m.Size()))
 }
 
 // Stop requests to stop the pump, the working loop will stop asynchronously.
@@ -288,7 +293,7 @@ func (p *Pump) Output(ctx context.Context, m Message) (err error) {
 		err = ctx.Err()
 	case <-p.stopD:
 		err = ErrPumpStopped
-	case p.wQ <- m:
+	case p.wQ <- message{mS: m}:
 		atomic.AddInt64(&p.stat.OutputCount, 1)
 	}
 	return
@@ -297,7 +302,31 @@ func (p *Pump) Output(ctx context.Context, m Message) (err error) {
 // TryOutput tries to put the message to the write queue.
 func (p *Pump) TryOutput(m Message) bool {
 	select {
-	case p.wQ <- m:
+	case p.wQ <- message{mS: m}:
+		atomic.AddInt64(&p.stat.OutputCount, 1)
+		return true
+	default:
+		return false
+	}
+}
+
+// OutputMP puts the multipart message to the write queue.
+func (p *Pump) OutputMP(ctx context.Context, m MPMessage) (err error) {
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case <-p.stopD:
+		err = ErrPumpStopped
+	case p.wQ <- message{mM: m}:
+		atomic.AddInt64(&p.stat.OutputCount, 1)
+	}
+	return
+}
+
+// TryOutputMP tries to put the multipart message to the write queue.
+func (p *Pump) TryOutputMP(m MPMessage) bool {
+	select {
+	case p.wQ <- message{mM: m}:
 		atomic.AddInt64(&p.stat.OutputCount, 1)
 		return true
 	default:
