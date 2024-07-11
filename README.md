@@ -7,10 +7,16 @@ The message-pump will continuously receive, process and send messages after star
 
 The transport layer is customizable, there is an implementation over net.Conn.
 
+msgpeer
+-------------
+
+The message-peer implements a synchronous request response model over message-pump, it considers the client and server peers, allowing each to send requests to the other concurrently.
+
 Documentation
 -------------
 
-- [API Reference](https://godoc.org/github.com/someonegg/bmsgpump)
+- [bmsgpump](https://godoc.org/github.com/someonegg/bmsgpump)
+- [bmsgpump/msgpeer](https://godoc.org/github.com/someonegg/bmsgpump/msgpeer)
 
 Installation
 ------------
